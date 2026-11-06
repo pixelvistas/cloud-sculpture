@@ -4,5 +4,4 @@ __pycache__/
 data/
 build/
 cut/
-*.stl
 "@ | Set-Content .gitignore

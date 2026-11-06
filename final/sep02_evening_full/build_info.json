@@ -1,0 +1,32 @@
+{
+  "center_lonlat": [
+    -79.21080750930538,
+    43.156666340607025
+  ],
+  "extent_km": [
+    570.0,
+    416.0
+  ],
+  "lon_range": [
+    -82.82599898211386,
+    -75.5891466910498
+  ],
+  "lat_range": [
+    41.31260669638485,
+    45.108718629986754
+  ],
+  "grid_km": 2.0,
+  "folder": "data/2026-09-02_ir_evening",
+  "start": "18:01",
+  "end": "23:51",
+  "threshold": 220.0,
+  "sigma_km": 3.0,
+  "sigma_frames": 2.0,
+  "upsample": 4,
+  "morph": false,
+  "width": 200.0,
+  "height": 80.0,
+  "min_piece": 0.2,
+  "lon0": -75.0,
+  "out": "build/sep02_evening_full"
+}
