@@ -1,0 +1,12 @@
+numpy
+pandas
+requests
+s3fs
+xarray
+h5netcdf
+pyproj
+pillow
+matplotlib
+scipy
+scikit-image
+trimesh

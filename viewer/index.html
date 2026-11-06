@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Storm Volume</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- three.js is loaded as an ES module from a CDN; nothing to install. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <h1 id="title">Storm volume</h1>
+    <p id="subtitle"></p>
+  </header>
+
+  <main>
+    <!-- Upper view: the contour stack and the moving image plane -->
+    <section id="view3d" aria-label="Three-dimensional view of the storm volume">
+      <div id="timestamp"></div>
+    </section>
+
+    <!-- Lower view: elevation of the finished volume from the current angle -->
+    <section id="section-wrap" aria-label="Elevation of the finished storm volume over time">
+      <canvas id="section"></canvas>
+    </section>
+  </main>
+
+  <footer id="controls">
+    <button id="play" type="button" aria-label="Pause">Pause</button>
+    <label>Time <input id="time" type="range" min="0" max="1" step="0.001" value="0"></label>
+  </footer>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
