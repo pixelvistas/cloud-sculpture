@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stack Preview</title>
+  <style>
+    :root { --bg: #000; --fg: #e8e8e8; --muted: #8f8f8f; --line: #2a2a2a; --accent: #d8692e; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+      font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { display: flex; flex-direction: column; }
+    header { position: relative; z-index: 2; background: var(--bg); padding: 16px 24px 8px; }
+    h1 { margin: 0; font-size: 18px; font-weight: 600; }
+    header p { margin: 4px 0 0; color: var(--muted); }
+    #panels { flex: 1; display: grid; gap: 1px; background: var(--bg); min-height: 0;
+      grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); }
+    .panel { position: relative; background: var(--bg); min-height: 260px; outline: 1px solid var(--line); }
+    .panel .label { position: absolute; left: 16px; top: 12px; right: 16px; pointer-events: none; z-index: 2; }
+    .panel .label b { display: block; font-size: 14px; }
+    .panel .label span { display: block; color: var(--muted); font-size: 12px; }
+    #canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    footer { position: relative; z-index: 2; background: var(--bg); display: flex; gap: 8px; align-items: center; padding: 10px 24px 14px; flex-wrap: wrap; }
+    footer button { background: #151515; color: var(--fg); border: 1px solid #333;
+      border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer; }
+    footer button[aria-pressed="true"] { border-color: var(--accent); color: #fff; }
+    footer .hint { color: var(--muted); margin-left: auto; font-size: 12px; }
+    #message { padding: 24px; color: var(--muted); }
+    @media (max-width: 700px) { header, footer { padding-left: 16px; padding-right: 16px; } }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Stack preview</h1>
+    <p>Each option as it will be built, at true relative size, beside the visualizer's contour stack.</p>
+  </header>
+  <main id="panels" aria-label="Sculpture options"></main>
+  <footer>
+    <span>Material</span>
+    <button type="button" data-mode="visualizer" aria-pressed="true">Visualizer colours</button>
+    <button type="button" data-mode="acrylic" aria-pressed="false">Clear acrylic</button>
+    <button type="button" id="spin" aria-pressed="true">Rotate</button>
+    <span class="hint">Drag any panel to turn all of them together</span>
+  </footer>
+  <canvas id="canvas"></canvas>
+  <script type="module" src="stack.js"></script>
+</body>
+</html>
