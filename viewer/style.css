@@ -2,7 +2,7 @@
   --bg: #000;
   --ink: #e8e8e8;
   --muted: #8a8a8a;
-  --accent: #f58319;
+  --accent: #5fb88f;
   --rule: #333;
 }
 
@@ -13,7 +13,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--ink);
-  font: 15px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font: 13px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 body {
@@ -22,7 +22,7 @@ body {
   min-height: 100vh;
 }
 
-header { padding: 20px 20px 0; }
+header { padding: 16px 20px 0; }
 h1 { margin: 0; font-size: 15px; font-weight: 500; letter-spacing: 0.02em; }
 #subtitle { margin: 2px 0 0; color: var(--muted); }
 
@@ -32,14 +32,30 @@ main {
   min-height: 0;
 }
 
-#view3d { position: relative; min-height: 0; }
+main.no-section { grid-template-rows: 1fr; }
+main.with-stack { grid-template-columns: 3fr 2fr; }
+main.with-stack #section-wrap { grid-column: 1 / -1; }
+
+#view3d { position: relative; min-height: 0; min-width: 0; }
+
+#stack-view { position: relative; min-height: 0; min-width: 0; border-left: 1px solid var(--rule); }
+#stack-view canvas { display: block; width: 100%; height: 100%; }
+#stack-label { position: absolute; left: 16px; top: 4px; pointer-events: none; }
+#stack-label b { display: block; font-weight: 500; }
+#stack-label span { color: var(--muted); }
+
+@media (max-width: 800px) {
+  main.with-stack { grid-template-columns: 1fr; grid-template-rows: 3fr 2fr; }
+  main.with-stack.no-section { grid-template-rows: 3fr 2fr; }
+  #stack-view { border-left: 0; border-top: 1px solid var(--rule); }
+}
 #view3d canvas { display: block; width: 100%; height: 100%; }
 
 #timestamp {
   position: absolute;
   pointer-events: none;
   font-variant-numeric: tabular-nums;
-  font-size: 18px;
+  font-size: 13px;
   padding-bottom: 2px;
   border-bottom: 1px solid var(--accent);
   white-space: nowrap;

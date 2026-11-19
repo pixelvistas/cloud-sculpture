@@ -1,0 +1,27 @@
+Model: 200 x 122 x 51 mm (W x D x H)
+Sliced into 18 sections of 4.5 mm = 81.0 mm (+58.7% vs the model height, set by the layer count)
+Layers: 18 x 4.5 mm = 81 mm tall
+Footprint scale: 0.636 x the STL
+Pieces: 32   Sheets (610 x 425 mm): 1
+Total cut length: 7.99 m (laser time scales with this)
+
+One layer per 2 frame(s), 18 of 36: layer 1 = 18:01, layer 18 = 23:41
+  1:18:01  2:18:21  3:18:41  4:19:01  5:19:21  6:19:41  7:20:01  8:20:21  9:20:41  10:21:01  11:21:21  12:21:41  13:22:01  14:22:21  15:22:41  16:23:01  17:23:21  18:23:41
+Left out 2 separate cell(s) that never join the main storm (volumes, cm^3): 3.66, 1.39
+Every piece is glued over at least 25% of its area to the layer above or below.
+
+Alignment: 2.57 m of scored guides, IDs engraved on 28 of 32 pieces.
+Assemble bottom-up from layer 1. Set each piece dry until its edge just covers every blue guide on the piece below (a line still showing means the piece is off on that side), then bond it.
+Hanging pieces (no piece below; they carry the guide for the piece above on their own top face, so fit them after it): 8a
+Weakly guided pieces (short guides, or guides that run in one direction only); place these against assembly.png and check from several sides before gluing:
+  2a: 0 mm of guide, spread 0.00
+  2b: 12 mm of guide, spread 0.13
+  3a: 11 mm of guide, spread 0.05
+  8a: 0 mm of guide, spread 0.00
+  9a: 0 mm of guide, spread 0.00
+  10a: 0 mm of guide, spread 0.00
+  16b: 20 mm of guide, spread 0.33
+  17b: 13 mm of guide, spread 0.29
+No hidden area large enough for an engraved ID (write these on the protective film instead): 8d, 16b, 17b, 18
+Test on offcuts first: how visible the engraving is, and which adhesive bonds two faces without bubbles or crazing.
+Stability: centre of mass is over the base, 3 mm inside its outline.

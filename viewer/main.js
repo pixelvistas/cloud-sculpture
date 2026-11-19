@@ -11,6 +11,10 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Line2 } from "three/addons/lines/Line2.js";
+import { LineGeometry } from "three/addons/lines/LineGeometry.js";
+import { LineMaterial } from "three/addons/lines/LineMaterial.js";
+import { createStackPanel } from "./stackpanel.js";
 
 // ---------------------------------------------------------------------------
 // 1. Configuration
@@ -18,7 +22,19 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const CONFIG = {
   dataUrl: "data/frames.json",
   width: 10, // west-east extent in scene units
-  heightRatio: 0.37, // time-axis height relative to width (sculpture: 69/189)
+  heightRatio: 0.13, // time-axis height relative to the FULL frame width
+  // (build --height / --width, e.g. 80/630 = 0.13)
+  crop: {
+    enabled: true, // trim the view to the part of the frame the storm uses
+    margin: 0.05, // breathing room around the storm, as a share of its size
+    minShare: 0.04, // only outlines at least this share of the largest
+    // outline set the crop, so small separate cells at the
+    // frame edges are ignored (they are still drawn if inside)
+    dropOutside: true, // hide small cells lying outside (or across) the crop
+    region: null, // or set by hand: [west, east, north, south] in 0..1,
+    // e.g. [0.05, 0.7, 0.2, 0.8]; the console prints the
+    // automatic one when the page loads
+  },
   secondsPerFrame: 0.45, // playback speed
   holdAtEnd: 1.6, // seconds to pause on the last frame before looping
   autoRotate: 0.35, // camera orbit speed (0 to disable)
@@ -28,7 +44,22 @@ const CONFIG = {
     zoom: 1.0, // >1 zooms in further (edges may crop while orbiting)
     margin: 1.03, // breathing room around the volume when fitted
   },
+  layers: {
+    lineWidth: 2, // outline thickness in screen pixels (WebGL's own
+    // lines are always 1 px, so these are drawn as strips)
+    fill: false, // fill each layer's shape once the image has passed it
+    ahead: 0xffffff, // layers the image has not reached yet
+    passed: 0x5fb88f, // layers it has passed: the green of a cut acrylic edge
+    fade: 1.0, // frames over which a layer turns from one to the other
+  },
+  stack: {
+    show: true, // the acrylic sculpture beside the contour view
+    name: null, // which exported stack (slice_layers.py --viewer ...
+    // --name NAME); null = the first one exported
+  },
   section: {
+    show: false, // the elevation (slit-scan) view below the volume;
+    // false gives the whole window to the 3D view
     width: 0.42, // share of the available width used by the drawing
     height: 0.72, // share of the available height used by the drawing
     lightUp: true, // rows light up in sync with playback, using the same
@@ -42,9 +73,9 @@ const CONFIG = {
   },
   colors: {
     background: 0x000000,
-    pastFill: 0x2e5bd8,
-    pastLine: 0xf58319,
-    futureLine: 0xf58319,
+    pastFill: 0x93ada1, // clear acrylic, as in stack.html (was orange 0xd8692e)
+    pastLine: 0x5fb88f, // green cut edge (was 0xf2b48a)
+    futureLine: 0x8f8f8f,
     plane: 0xffffff,
   },
 };
@@ -53,6 +84,22 @@ const CONFIG = {
 // 2. Scene and camera
 // ---------------------------------------------------------------------------
 const view = document.getElementById("view3d");
+const mainEl = document.querySelector("main");
+// The stack panel's container; created here if index.html predates it.
+let stackEl = document.getElementById("stack-view");
+if (!stackEl) {
+  stackEl = document.createElement("section");
+  stackEl.id = "stack-view";
+  stackEl.setAttribute("aria-label", "The layered acrylic sculpture");
+  stackEl.innerHTML = '<div id="stack-label"></div>';
+  view.after(stackEl);
+}
+if (!CONFIG.section.show) {
+  document.getElementById("section-wrap").style.display = "none";
+  mainEl.classList.add("no-section");
+}
+if (CONFIG.stack.show) mainEl.classList.add("with-stack");
+else stackEl.style.display = "none";
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 view.appendChild(renderer.domElement);
@@ -96,6 +143,7 @@ function resize() {
   const w = view.clientWidth,
     h = view.clientHeight;
   renderer.setSize(w, h, false);
+  for (const m of lineMaterials) m.resolution.set(w, h); // keeps lines lineWidth px wide
   const aspect = w / Math.max(h, 1);
   const fh = frustumHeight(aspect);
   camera.left = (-fh * aspect) / 2;
@@ -120,13 +168,74 @@ const meta = await fetch(CONFIG.dataUrl).then((r) => {
 });
 const frames = meta.frames;
 const N = frames.length;
-const W = CONFIG.width;
-const D = W * meta.aspect; // north-south extent
-const H = W * CONFIG.heightRatio; // time axis
+// Crop: the region of the frame (in 0..1 image coordinates) the storm
+// occupies over the whole window, plus a margin. Everything below is scaled
+// to this region, so the storm fills the view instead of a mostly empty frame.
+function polyArea(c) {
+  let a = 0;
+  for (let i = 0, j = c.length - 1; i < c.length; j = i++) {
+    a += (c[j][0] + c[i][0]) * (c[j][1] - c[i][1]);
+  }
+  return Math.abs(a / 2) * meta.aspect;
+}
+let u0 = 0,
+  u1 = 1,
+  v0 = 0,
+  v1 = 1;
+if (CONFIG.crop.enabled && CONFIG.crop.region) {
+  [u0, u1, v0, v1] = CONFIG.crop.region;
+} else if (CONFIG.crop.enabled) {
+  let a0 = Infinity,
+    a1 = -Infinity,
+    b0 = Infinity,
+    b1 = -Infinity;
+  let largest = 0;
+  for (const f of frames)
+    for (const c of f.contours) largest = Math.max(largest, polyArea(c));
+  for (const f of frames) {
+    for (const c of f.contours) {
+      if (polyArea(c) < CONFIG.crop.minShare * largest) continue;
+      for (const [u, v] of c) {
+        a0 = Math.min(a0, u);
+        a1 = Math.max(a1, u);
+        b0 = Math.min(b0, v);
+        b1 = Math.max(b1, v);
+      }
+    }
+  }
+  if (a1 > a0 && b1 > b0) {
+    const mu = (a1 - a0) * CONFIG.crop.margin,
+      mv = (b1 - b0) * CONFIG.crop.margin;
+    u0 = Math.max(0, a0 - mu);
+    u1 = Math.min(1, a1 + mu);
+    v0 = Math.max(0, b0 - mv);
+    v1 = Math.min(1, b1 + mv);
+  }
+}
+// Outlines that fall outside the crop, even partly, are small separate cells
+// at the frame edges; drop them so nothing floats beyond the image plane.
+if (CONFIG.crop.enabled && CONFIG.crop.dropOutside) {
+  const eps = 1e-6;
+  const inside = ([u, v]) =>
+    u >= u0 - eps && u <= u1 + eps && v >= v0 - eps && v <= v1 + eps;
+  let dropped = 0;
+  for (const f of frames) {
+    const before = f.contours.length;
+    f.contours = f.contours.filter((c) => c.every(inside));
+    dropped += before - f.contours.length;
+  }
+  if (dropped) console.log(`dropped ${dropped} outline(s) outside the crop`);
+}
+console.log(
+  `crop region: [${[u0, u1, v0, v1].map((x) => x.toFixed(3)).join(", ")}]`,
+);
+const W = CONFIG.width; // cropped west-east extent
+const D = (W * meta.aspect * (v1 - v0)) / (u1 - u0); // cropped north-south extent
+const H = (W * CONFIG.heightRatio) / (u1 - u0); // time axis, same scale as the build
 
 // Scene axes: x = east, z = south, y = time (up).
-const toX = (u) => (u - 0.5) * W;
-const toZ = (v) => (v - 0.5) * D;
+const toX = (u) => ((u - u0) / (u1 - u0) - 0.5) * W;
+const toZ = (v) => ((v - v0) / (v1 - v0) - 0.5) * D;
 
 const day = new Date(frames[0].time);
 document.getElementById("title").textContent =
@@ -209,20 +318,27 @@ function buildShapes(contours) {
   return [...shapes.values()];
 }
 
+const lineMaterials = [];
 const layers = frames.map((f, i) => {
   const y = f.z * H;
   const group = new THREE.Group();
+  // One material per layer, so each layer can change colour on its own.
+  const material = new LineMaterial({
+    color: CONFIG.layers.ahead,
+    linewidth: CONFIG.layers.lineWidth,
+  });
+  lineMaterials.push(material);
   const lines = f.contours.map((c) => {
-    const pos = new Float32Array(c.length * 3);
-    c.forEach(([u, v], k) => pos.set([toX(u), y, toZ(v)], k * 3));
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    const line = new THREE.LineLoop(geom, materials.futureLine);
+    const pos = [];
+    for (const [u, v] of [...c, c[0]]) pos.push(toX(u), y, toZ(v)); // closed loop
+    const geom = new LineGeometry();
+    geom.setPositions(pos);
+    const line = new Line2(geom, material);
     group.add(line);
     return line;
   });
   let fill = null;
-  if (f.contours.length) {
+  if (CONFIG.layers.fill && f.contours.length) {
     // ShapeGeometry lies in the XY plane; rotating +90 degrees about X maps
     // (x, y) to (x, 0, y), i.e. onto the horizontal plane with y as south.
     fill = new THREE.Mesh(
@@ -235,16 +351,19 @@ const layers = frames.map((f, i) => {
     group.add(fill);
   }
   scene.add(group);
-  return { lines, fill, index: i };
+  return { lines, material, fill, index: i };
 });
 
+// A layer turns from the 'ahead' colour to the 'passed' colour as the image
+// plane moves through it, blending over CONFIG.layers.fade frames.
+const aheadColor = new THREE.Color(CONFIG.layers.ahead);
+const passedColor = new THREE.Color(CONFIG.layers.passed);
 function setLayerStates(t) {
+  const fade = Math.max(CONFIG.layers.fade, 1e-3);
   for (const L of layers) {
-    const past = L.index <= t + 1e-6;
-    for (const line of L.lines) {
-      line.material = past ? materials.pastLine : materials.futureLine;
-    }
-    if (L.fill) L.fill.visible = past;
+    const k = THREE.MathUtils.clamp((t - L.index) / fade + 0.5, 0, 1);
+    L.material.color.lerpColors(aheadColor, passedColor, k);
+    if (L.fill) L.fill.visible = L.index <= t + 1e-6;
   }
 }
 
@@ -277,6 +396,10 @@ const dataBase = new URL(CONFIG.dataUrl, window.location.href); // textures sit 
 const textures = frames.map((f) => {
   const tex = loader.load(new URL(f.texture, dataBase).href);
   tex.colorSpace = THREE.SRGBColorSpace;
+  // Show only the cropped region. Image row 0 is north (v = 0), and the
+  // texture's vertical coordinate runs from the bottom, hence 1 - v.
+  tex.repeat.set(u1 - u0, v1 - v0);
+  tex.offset.set(u0, 1 - v1);
   return tex;
 });
 
@@ -395,6 +518,7 @@ function computeSection(force = false) {
 let currentIndex = 0;
 const hex = (n) => `#${n.toString(16).padStart(6, "0")}`;
 function drawSection() {
+  if (!CONFIG.section.show) return;
   const dpr = Math.min(window.devicePixelRatio, 2);
   const cw = sectionCanvas.clientWidth,
     ch = sectionCanvas.clientHeight;
@@ -431,7 +555,7 @@ function drawSection() {
   ctx.lineWidth = Math.max(1, Math.min(2, step * 0.45));
   sectionRows.forEach((spans, i) => {
     const y = bottom - i * step; // earliest at the bottom
-    // Same states as the contour stack: frames already passed are orange like
+    // Same states as the contour stack: frames already passed are filled like
     // the filled layers, the current frame is white like the image plane's
     // edge, and frames still to come are dim grey like the future outlines.
     ctx.strokeStyle = !CONFIG.section.lightUp
@@ -449,7 +573,7 @@ function drawSection() {
     }
   });
 
-  // The playhead, as a vertical rule beside the section; its orange mark is
+  // The playhead, as a vertical rule beside the section; its coloured mark is
   // the only part of the lower view that follows playback.
   ctx.strokeStyle = "rgba(232,232,232,0.6)";
   ctx.lineWidth = 1;
@@ -457,7 +581,7 @@ function drawSection() {
   ctx.moveTo(x0 + w + 8, top);
   ctx.lineTo(x0 + w + 8, bottom);
   ctx.stroke();
-  ctx.fillStyle = "#d8692e";
+  ctx.fillStyle = hex(CONFIG.colors.pastLine);
   ctx.fillRect(x0 + w + 5, bottom - currentIndex * step - 1, 7, 2);
 }
 
@@ -533,7 +657,34 @@ function tick() {
   computeSection(); // follows the camera's rotation
   applyTime();
   renderer.render(scene, camera);
+  if (stackPanel)
+    stackPanel.update(camera, controls.target, t, CONFIG.layers.fade);
   requestAnimationFrame(tick);
+}
+
+// The stack panel loads in the background; the contour view does not wait.
+let stackPanel = null;
+if (CONFIG.stack.show) {
+  createStackPanel(stackEl, {
+    name: CONFIG.stack.name,
+    frames,
+    ahead: CONFIG.layers.ahead,
+    passed: CONFIG.layers.passed,
+  })
+    .then((panel) => {
+      stackPanel = panel;
+      const i = panel.info,
+        inch = (mm) => (mm / 25.4).toFixed(1);
+      document.getElementById("stack-label").innerHTML =
+        `<b>${i.label}</b><span>${i.layers} layers × ${i.thickness} mm · ` +
+        `${inch(i.size[0])} × ${inch(i.size[1])} × ${inch(i.size[2])} in</span>`;
+    })
+    .catch((err) => {
+      console.warn(`Stack panel hidden: ${err.message}`);
+      stackEl.style.display = "none";
+      mainEl.classList.remove("with-stack");
+      resize();
+    });
 }
 
 computeSection(true);

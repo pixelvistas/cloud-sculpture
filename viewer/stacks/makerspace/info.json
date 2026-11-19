@@ -1,0 +1,21 @@
+{
+  "name": "makerspace",
+  "label": "Makerspace files",
+  "layers": 18,
+  "thickness": 4.5,
+  "every": 2,
+  "first": "18:01",
+  "last": "23:41",
+  "size": [
+    190.39520633793842,
+    115.14860351947888,
+    81.0
+  ],
+  "frame": {
+    "width": 400.8678806393236,
+    "depth": 219.91184674571042,
+    "height": 50.90385785896173
+  },
+  "sheets": 1,
+  "pieces": 32
+}

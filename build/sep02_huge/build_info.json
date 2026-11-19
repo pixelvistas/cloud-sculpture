@@ -1,0 +1,32 @@
+{
+  "center_lonlat": [
+    -75.0000000093142,
+    43.277330049237335
+  ],
+  "extent_km": [
+    1914.0,
+    1050.0
+  ],
+  "lon_range": [
+    -87.83728970497643,
+    -62.195742841938376
+  ],
+  "lat_range": [
+    38.49701529500953,
+    48.500280009284914
+  ],
+  "grid_km": 3.0,
+  "folder": "data/2026-09-02_ir_huge",
+  "start": "18:01",
+  "end": "23:51",
+  "threshold": 220.0,
+  "sigma_km": 3.0,
+  "sigma_frames": 2.0,
+  "upsample": 4,
+  "morph": false,
+  "width": 630.0,
+  "height": 80.0,
+  "min_piece": 0.2,
+  "lon0": -75.0,
+  "out": "build/sep02_huge"
+}
