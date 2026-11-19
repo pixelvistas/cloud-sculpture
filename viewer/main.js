@@ -54,7 +54,7 @@ const CONFIG = {
   },
   stack: {
     show: true, // the acrylic sculpture beside the contour view
-    name: null, // which exported stack (slice_layers.py --viewer ...
+    name: "makerspace", // which exported stack (slice_layers.py --viewer ...
     // --name NAME); null = the first one exported
   },
   section: {
@@ -73,7 +73,7 @@ const CONFIG = {
   },
   colors: {
     background: 0x000000,
-    pastFill: 0x93ada1, // clear acrylic, as in stack.html (was orange 0xd8692e)
+    pastFill: 0x93ada1, // clear acrylic (was orange 0xd8692e)
     pastLine: 0x5fb88f, // green cut edge (was 0xf2b48a)
     futureLine: 0x8f8f8f,
     plane: 0xffffff,
