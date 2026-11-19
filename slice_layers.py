@@ -48,7 +48,8 @@ Outputs (in --out):
 
 With --viewer PATH (the visualizer's folder), the stacked object is also
 copied to PATH/stacks/<name>/ and listed in PATH/stacks/index.json, so
-stack.html shows it next to the visualizer's contour view at true scale.
+the visualizer's stack panel (stackpanel.js) shows it beside the contour
+view at true scale; set stack.name in viewer/main.js to choose it.
 Run the slicer once per option (different --out and --name) to compare them.
 
 Alignment guides
@@ -1030,7 +1031,7 @@ def main():
     p.add_argument(
         "--viewer",
         default=None,
-        help="visualizer folder; also export the stack for stack.html",
+        help="visualizer folder; also export the stack for the visualizer",
     )
     p.add_argument(
         "--name",
@@ -1041,7 +1042,7 @@ def main():
     p.add_argument(
         "--label",
         default=None,
-        help="with --viewer: caption shown above it in stack.html",
+        help="with --viewer: caption shown above it in the visualizer",
     )
     p.add_argument("--out", default="cut/sculpture")
     a = p.parse_args()
@@ -1153,7 +1154,7 @@ def main():
             len(sheets),
             len(pieces),
         )
-        print(f"Exported to {dest} for stack.html")
+        print(f"Exported to {dest} for the visualizer")
     elif a.viewer:
         print("Not exported to the viewer: stack.stl could not be built.")
 
