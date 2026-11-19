@@ -2,7 +2,7 @@ Model: 200 x 122 x 51 mm (W x D x H)
 Sliced into 18 sections of 4.5 mm = 81.0 mm (+58.7% vs the model height, set by the layer count)
 Layers: 18 x 4.5 mm = 81 mm tall
 Footprint scale: 0.636 x the STL
-Pieces: 32   Sheets (610 x 425 mm): 1
+Pieces: 32   Sheets (600 x 400 mm): 2
 Total cut length: 7.99 m (laser time scales with this)
 
 One layer per 2 frame(s), 18 of 36: layer 1 = 18:01, layer 18 = 23:41
