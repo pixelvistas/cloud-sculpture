@@ -28,7 +28,15 @@ Outputs (in --out):
                           blue  #0000ff  score: alignment guides (hairline)
                           black #000000  engrave (fill): piece IDs
                         The grey sheet outline is for reference; switch that
-                        layer off in the laser software.
+                        layer off in the laser software. With --colours
+                        red-blue: red = cut, blue = engrave (IDs and guides as
+                        closed shapes), no outline, for machines that read
+                        only those two colours.
+    sheet_01_VIEW_ONLY.svg  the same file with thick lines, for looking at on
+                        screen (the cut file's hairlines are almost invisible
+                        in a browser); do not send this one to the cutter
+    test_cut.svg        a 98 x 50 mm test: a 20 mm square to measure the kerf and
+                        two 30 mm squares to test engraving, alignment and glue
     sheet_01_map.png    the same layout with each piece's ID (layer + letter)
                         and its guides, for checking the sheet before cutting
     assembly.png        every layer in order, with the layer below dashed and
@@ -40,8 +48,8 @@ Outputs (in --out):
 
 With --viewer PATH (the visualizer's folder), the stacked object is also
 copied to PATH/stacks/<name>/ and listed in PATH/stacks/index.json, so
-the visualizer's stack panel (stackpanel.js) can show it beside the
-contour view at true scale. Set stack.name in viewer/main.js to choose it.
+stack.html shows it next to the visualizer's contour view at true scale.
+Run the slicer once per option (different --out and --name) to compare them.
 
 Alignment guides
     On the top face of each piece, the laser scores the part of the next
@@ -537,7 +545,15 @@ def line_path(lines):
     )
 
 
-def write_svg(path, sheet, sheet_w, sheet_h):
+def write_svg(
+    path, sheet, sheet_w, sheet_h, stroke=0.01, colours="three", guide_width=0.3
+):
+    """colours="three": red cut, blue score (open hairlines), black engrave.
+    colours="red-blue": for machines that take only red = cut and
+    blue = engrave with closed paths: guides become thin closed strips
+    guide_width wide, engraved like the IDs, and there is no sheet outline."""
+    if colours == "red-blue":
+        return write_svg_red_blue(path, sheet, sheet_w, sheet_h, stroke, guide_width)
     lines = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{sheet_w}mm" '
         f'height="{sheet_h}mm" viewBox="0 0 {sheet_w} {sheet_h}">',
@@ -551,18 +567,93 @@ def write_svg(path, sheet, sheet_w, sheet_h):
             lines.append(f'  <path fill-rule="evenodd" d="{poly_path(part)}"/>')
     lines += [
         "</g>",
-        '<g id="score-guides" fill="none" stroke="#0000ff" ' 'stroke-width="0.01">',
+        '<g id="score-guides" fill="none" stroke="#0000ff" '
+        f'stroke-width="{stroke}">',
     ]
     for pid, _, (guide, _) in sheet:
         if guide is not None and not guide.is_empty:
             lines.append(f'  <path id="guide-{pid}" d="{line_path(guide)}"/>')
-    lines += ["</g>", '<g id="cut" fill="none" stroke="#ff0000" stroke-width="0.01">']
+    lines += [
+        "</g>",
+        f'<g id="cut" fill="none" stroke="#ff0000" stroke-width="{stroke}">',
+    ]
     for pid, poly, _ in sheet:
         lines.append(
             f'  <path id="piece-{pid}" fill-rule="evenodd" d="{poly_path(poly)}"/>'
         )
     lines += ["</g>", "</svg>"]
     Path(path).write_text("\n".join(lines))
+
+
+def write_svg_red_blue(path, sheet, sheet_w, sheet_h, stroke, guide_width):
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{sheet_w}mm" '
+        f'height="{sheet_h}mm" viewBox="0 0 {sheet_w} {sheet_h}">',
+        '<g id="engrave" fill="#0000ff" stroke="none">',
+    ]
+    for pid, _, (guide, label) in sheet:
+        for part in ([] if label is None else as_list(label)):
+            lines.append(
+                f'  <path id="id-{pid}" fill-rule="evenodd" d="{poly_path(part)}"/>'
+            )
+        if guide is not None and not guide.is_empty:
+            strip = guide.buffer(guide_width / 2, cap_style="flat", join_style="round")
+            for part in as_list(strip):
+                lines.append(
+                    f'  <path id="guide-{pid}" fill-rule="evenodd" '
+                    f'd="{poly_path(part)}"/>'
+                )
+    lines += [
+        "</g>",
+        f'<g id="cut" fill="none" stroke="#ff0000" stroke-width="{stroke}">',
+    ]
+    for pid, poly, _ in sheet:
+        lines.append(
+            f'  <path id="piece-{pid}" fill-rule="evenodd" d="{poly_path(poly)}"/>'
+        )
+    lines += ["</g>", "</svg>"]
+    Path(path).write_text("\n".join(lines))
+
+
+def write_test_cut(path, colours, guide_width, inset, label_size, view_stroke=None):
+    """A small test sheet (90 x 50 mm): a 20 mm square to measure the kerf,
+    and two overlapping 30 mm squares, the lower one carrying the guide and
+    the ID, to test engraving, alignment and gluing on offcuts."""
+    from shapely import affinity
+    from shapely.geometry import box
+
+    sq = box(0, 0, 20, 20)
+    lower = box(0, 0, 30, 30)
+    upper = affinity.translate(lower, 10, 10)  # sits 10 mm up and right
+    guide = guides_on(
+        lower,
+        upper,
+        inset + (guide_width / 2 if colours == "red-blue" else 0.0),
+        1.0,
+        3.0,
+    )
+    label = affinity.translate(text_geom("T1", label_size), 20, 18)
+    sheet = [
+        ("kerf-20mm", affinity.translate(sq, 5, 15), [None, None]),
+        (
+            "lower",
+            affinity.translate(lower, 30, 10),
+            [affinity.translate(guide, 30, 10), affinity.translate(label, 30, 10)],
+        ),
+        ("upper", affinity.translate(box(0, 0, 30, 30), 63, 10), [None, None]),
+    ]
+    # SVG y points down; flip so the test reads the same way as the real sheets
+    flip = lambda g: None if g is None else affinity.scale(g, 1, -1, origin=(0, 25))
+    sheet = [(pid, flip(poly), [flip(e) for e in ex]) for pid, poly, ex in sheet]
+    write_svg(
+        path,
+        sheet,
+        98,
+        50,
+        stroke=view_stroke or 0.01,
+        colours=colours,
+        guide_width=guide_width,
+    )
 
 
 def plot_polys(ax, geom, **kw):
@@ -923,9 +1014,23 @@ def main():
         help="height of engraved IDs [mm]; shrinks to 2.5 where needed",
     )
     p.add_argument(
+        "--colours",
+        choices=["three", "red-blue"],
+        default="three",
+        help="three: red cut, blue score, black engrave; red-blue: only "
+        "red = cut and blue = engrave, all paths closed (guides "
+        "become thin engraved strips)",
+    )
+    p.add_argument(
+        "--guide-width",
+        type=float,
+        default=0.3,
+        help="with --colours red-blue: width of the engraved guide strips [mm]",
+    )
+    p.add_argument(
         "--viewer",
         default=None,
-        help="visualizer folder; also export the stack for the visualizer",
+        help="visualizer folder; also export the stack for stack.html",
     )
     p.add_argument(
         "--name",
@@ -936,7 +1041,7 @@ def main():
     p.add_argument(
         "--label",
         default=None,
-        help="with --viewer: caption shown above it in the visualizer",
+        help="with --viewer: caption shown above it in stack.html",
     )
     p.add_argument("--out", default="cut/sculpture")
     a = p.parse_args()
@@ -974,8 +1079,13 @@ def main():
 
     guides, labels = {}, {}
     if a.etch:
+        # Engraved strips are centred half their width further in, so the
+        # whole strip stays under the upper piece's edge.
+        inset_eff = a.etch_inset + (
+            a.guide_width / 2 if a.colours == "red-blue" else 0.0
+        )
         guides, labels = etch_marks(
-            layers, ids, a.etch_inset, a.edge_clear, a.min_guide, a.label_size
+            layers, ids, inset_eff, a.edge_clear, a.min_guide, a.label_size
         )
 
     # SVG's y axis points down; mirror so each piece is drawn as seen from
@@ -991,14 +1101,35 @@ def main():
     ]
     sheets = nest(pieces, a.sheet[0], a.sheet[1], a.margin, a.gap)
     for s, sheet in enumerate(sheets, 1):
-        write_svg(out / f"sheet_{s:02d}.svg", sheet, a.sheet[0], a.sheet[1])
+        write_svg(
+            out / f"sheet_{s:02d}.svg",
+            sheet,
+            a.sheet[0],
+            a.sheet[1],
+            colours=a.colours,
+            guide_width=a.guide_width,
+        )
+        # Same layout with lines thick enough to see on screen; not for cutting.
+        write_svg(
+            out / f"sheet_{s:02d}_VIEW_ONLY.svg",
+            sheet,
+            a.sheet[0],
+            a.sheet[1],
+            stroke=0.6,
+            colours=a.colours,
+            guide_width=a.guide_width,
+        )
         write_map(
             out / f"sheet_{s:02d}_map.png",
             sheet,
             a.sheet[0],
             a.sheet[1],
-            f"Sheet {s}: blue = scored guides; IDs marked * are not "
+            f"Sheet {s}: blue = guides; IDs marked * are not "
             "engraved, so write them on the protective film",
+        )
+    if a.etch:
+        write_test_cut(
+            out / "test_cut.svg", a.colours, a.guide_width, a.etch_inset, a.label_size
         )
     write_assembly(out / "assembly.png", layers, ids, a.base == "plate", guides, times)
     stack_ok = True
@@ -1022,7 +1153,7 @@ def main():
             len(sheets),
             len(pieces),
         )
-        print(f"Exported to {dest} for the visualizer")
+        print(f"Exported to {dest} for stack.html")
     elif a.viewer:
         print("Not exported to the viewer: stack.stl could not be built.")
 
