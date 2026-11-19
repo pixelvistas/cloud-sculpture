@@ -32,16 +32,24 @@ Then open `http://localhost:8000`. three.js loads from a CDN; nothing needs to b
 
 ## Cutting the sculpture
 
-All files are in `cut/makerspace/`, prepared for a laser bed of 27 × 17 in with red = cut and blue = engrave.
+All files are in `cut/makerspace/`, prepared for a laser bed of 27 × 17 in with red = cut and blue = engrave. The layers are split across two panels cut from one 24 × 36 in sheet:
+
+| Piece of the sheet | Size | Use |
+|---|---|---|
+| Panel 1 | 24 × 16 in (15½–17 in acceptable) | `sheet_01.svg` |
+| Panel 2 | 24 × 3 in (2¾–17 in acceptable) | `sheet_02.svg` |
+| Spare | 24 × 17 in | `test_cut.svg`, re-cuts |
 
 | File | Purpose |
 |---|---|
-| `test_cut.svg` | Cut first, on an offcut: kerf, engraving depth, guide fit and glue test |
-| `sheet_01.svg` | All 18 layers on one 610 × 425 mm panel; **the file for the cutter** |
-| `sheet_01_VIEW_ONLY.svg` | Same layout with visible line widths; for checking on screen only |
-| `sheet_01_map.png` | Piece IDs, for labelling pieces on the film before removing them |
+| `test_cut.svg` | Cut first, on the spare: kerf, engraving depth, guide fit and glue test |
+| `sheet_01.svg`, `sheet_02.svg` | The layers, laid out on 600 × 400 mm; **the files for the cutter** |
+| `sheet_0N_VIEW_ONLY.svg` | Same layouts with visible line widths; for checking on screen only |
+| `sheet_0N_map.png` | Piece IDs, for labelling pieces on the film before removing them; IDs marked * are not engraved |
 | `assembly.png` | Stacking order and the time of each layer |
 | `report.txt` | Checks: sheet count, weakly guided pieces, stability |
+
+Push each panel into the laser's origin corner; the pieces start 6 mm in from it.
 
 Assemble from layer 1 upward, aligning each piece to the blue guides engraved on the piece below.
 
@@ -57,7 +65,7 @@ python build_volume.py data/2026-09-02_ir_huge --start 18:01 --end 23:51 \
     --grid-km 3 --sigma-frames 2 --width 630 --out build/sep02_huge
 
 python slice_layers.py build/sep02_huge/sculpture.stl --every 2 --width 200 \
-    --thickness 4.5 --sheet 610 425 --base none --colours red-blue \
+    --thickness 4.5 --sheet 600 400 --base none --colours red-blue \
     --out cut/makerspace --viewer viewer --name makerspace
 ```
 
