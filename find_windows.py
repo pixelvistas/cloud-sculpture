@@ -11,7 +11,7 @@ then by how even the width is (smallest coverage / largest coverage).
 
 Two modes
 ---------
-folder   an extracted day (output of goes_extract_v2.py), at full cadence
+folder   an extracted day (output of goes_extract.py), at full cadence
          python find_windows.py folder data/2026-09-02_ir
 
 survey   many days, sampled sparsely from the satellite archive, to find
@@ -177,14 +177,7 @@ def run_folder(a):
 
 
 def run_survey(a):
-    try:
-        import goes_extract_v2 as ge
-    except ImportError:
-        import goes_extract as ge
-    if not hasattr(ge, "display"):
-        raise SystemExit(
-            "This needs the updated extraction script (goes_extract_v2.py)."
-        )
+    import goes_extract as ge
     ge.BAND = a.band.upper()
 
     if a.dates:

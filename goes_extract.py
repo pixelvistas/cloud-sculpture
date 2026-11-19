@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-goes_extract.py — Stage 2: extract one day of GOES-19 visible imagery
-(band 2, 0.64 um, 0.5 km) over a fixed frame around Toronto.
+goes_extract.py — Stage 2: extract one day of GOES-19 imagery over a fixed
+frame around Toronto: band 2 (visible, 0.64 um, 0.5 km, daytime) by default,
+or band 13 (clean infrared, 10.3 um, 2 km, day and night) with --band C13.
 
 Source: NOAA's public GOES-19 bucket on AWS (no account needed)
     s3://noaa-goes19/ABI-L2-CMIPC/<year>/<day-of-year>/<hour UTC>/
@@ -65,7 +66,7 @@ def hour_prefix(t_utc):
 
 
 def band_files(fs, t_utc, cache):
-    """Band-2 files in the UTC hour containing t_utc, as (start, path)."""
+    """Files for the selected band in the UTC hour containing t_utc, as (start, path)."""
     prefix = hour_prefix(t_utc)
     if prefix not in cache:
         try:
@@ -172,11 +173,20 @@ def read_crop(fs, path, slices):
 # --------------------------------------------------------------------------
 
 
-def to_png(cmi, path, gamma=0.6):
+def display(cmi):
+    """0-1 display values: reflectance for visible bands, inverted brightness
+    temperature for infrared bands (cold cloud tops appear bright)."""
+    if BAND in ("C01", "C02", "C03"):
+        img = np.clip(cmi, 0, 1) ** 0.6
+    else:
+        img = np.clip((300.0 - cmi) / (300.0 - 190.0), 0, 1)
+    return np.nan_to_num(img, nan=0.0)
+
+
+def to_png(cmi, path):
     from PIL import Image
 
-    img = np.nan_to_num(np.clip(cmi, 0, 1), nan=0.0) ** gamma
-    Image.fromarray((img * 255).astype(np.uint8)).save(path)
+    Image.fromarray((display(cmi) * 255).astype(np.uint8)).save(path)
 
 
 def connect():
@@ -251,7 +261,7 @@ def run_preview(a):
             if slices is None:
                 slices = crop_slices(open_remote(fs, hit[1]), a.bbox)
             cmi = read_crop(fs, hit[1], slices)["cmi"]
-            img = (np.nan_to_num(np.clip(cmi, 0, 1)) ** 0.6 * 255).astype(np.uint8)
+            img = (display(cmi) * 255).astype(np.uint8)
             row.append(Image.fromarray(img))
             print(f"{d} {hhmm} ok")
         tiles.append((d, row))
@@ -285,6 +295,12 @@ def main():
     ex.add_argument("--out", required=True)
     for sp in (pv, ex):
         sp.add_argument(
+            "--band",
+            default="C02",
+            help="C02 visible (0.5 km, daytime) or C13 clean "
+            "infrared (2 km, day and night; CMI in kelvin)",
+        )
+        sp.add_argument(
             "--bbox",
             type=float,
             nargs=4,
@@ -292,6 +308,8 @@ def main():
             metavar=("WEST", "SOUTH", "EAST", "NORTH"),
         )
     a = p.parse_args()
+    global BAND
+    BAND = a.band.upper()
     run_preview(a) if a.mode == "preview" else run_extract(a)
 
 

@@ -2,7 +2,7 @@
 """
 inspect_frames.py — checkpoint between Stage 2 and Stage 3.
 
-Reads the frames written by goes_extract_v2.py (infrared, band 13) and
+Reads the frames written by goes_extract.py (infrared, band 13) and
 answers two questions before any geometry is built:
   1. Does the storm decay, or leave the frame, before the window ends?
   2. Where, and for how long, does the storm touch the frame edges?

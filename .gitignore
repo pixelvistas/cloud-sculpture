@@ -1,7 +1,11 @@
-@"
 .venv/
 __pycache__/
+
+# Downloaded satellite frames (re-create with goes_extract.py)
 data/
-build/
-cut/
-"@ | Set-Content .gitignore
+
+# Build and cut outputs: only the chosen version is kept in the repo
+build/*
+!build/sep02_huge/
+cut/*
+!cut/makerspace/
